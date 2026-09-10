@@ -274,21 +274,44 @@ quantity. Hiding the universe as well needs a different commitment scheme.
 
 19 tests, on top of the 59 covering the plaintext vault.
 
-## What is specified but NOT built
+## The circuit compiles, proves, and refuses what it should
 
-**The circuit has never been compiled and no proof has ever been generated.**
-`circuits/risk_caps.circom` is real, reviewable source, and it is the
-specification the contract is written against — but there is no circom
-toolchain in the environment it was authored in, so it has not been compiled,
-has had no trusted setup, and has never produced a proof that zkVerify
-verified. Until that happens end to end, the honest description of this work
-is "the integration and security design are built and tested; the proving
-system is specified."
+Built with circom 2.2.3, compiled from source. The numbers:
 
-That is a real distinction and it should not be blurred in an application.
-What it does establish is that the hard architectural questions — what is
-proven versus checked, how replay is prevented, how prices are bound, how the
-statement is encoded — have been answered concretely rather than gestured at.
+| | |
+|---|---|
+| Non-linear constraints | 3,645 |
+| Linear constraints | 891 |
+| Public inputs | 16 |
+| Private inputs | 9 (8 quantities + blinding) |
+| Proving time | ~570ms |
+
+Three things this establishes that the design alone did not:
+
+1. **The public-input vector matches.** The circuit emits 16 public signals
+   and `scripts/prove.js` asserts they equal `publicInputs()` element for
+   element. That alignment was previously an intention; it is now checked.
+2. **Proving is fast enough to be usable.** Sub-second proof generation means
+   proving cost does not bound how often a strategy can trade, which was an
+   open viability question and could have sunk the whole approach.
+3. **The caps are genuinely constrained.** A circuit that proves anything
+   looks identical from outside to one that constrains properly, so the script
+   also attempts to prove a book that breaches the position cap and confirms
+   witness generation fails. Without this check the confidentiality would be
+   theatre.
+
+### What still has not happened
+
+- **No proof has gone through zkVerify.** Everything above verifies locally
+  with snarkjs. The on-chain path — register the verification key with
+  zkVerify, submit a proof, have it aggregated, consume the attestation
+  through `advanceState` — is untested end to end, and the `vkHash` zkVerify
+  derives from a registered key is not necessarily the placeholder used here.
+- **The trusted setup is development-only.** `scripts/setup-circuit.sh`
+  generates the toxic waste locally and destroys nothing, so whoever ran it
+  can forge proofs against that key. Fine for a demonstration, disqualifying
+  for a vault holding deposits. Production needs a multi-party ceremony and a
+  Phase 1 taken from an existing public powers-of-tau file.
 
 ## Known holes
 
@@ -306,9 +329,10 @@ statement is encoded — have been answered concretely rather than gestured at.
    aggregation would test this contract's arithmetic rather than the vault's
    behaviour, and would drift from zkVerify's real tree. But it means the
    Merkle-path plumbing is untested until it runs against the real thing.
-4. **No proving-side performance work.** Proof generation time and cost per
-   trade are unknown, and they determine whether a strategy can trade at any
-   useful frequency. This is a viability question, not a detail.
+4. **Proving cost is measured but not stress-tested.** ~570ms for the current
+   8-asset universe on one machine. A larger universe, a wider comparator, or
+   the conservation constraints of the next iteration all grow it, and none of
+   that has been measured.
 5. **The blinding factor must be freshly random per commitment.** Quantities
    are drawn from a small, guessable space, so an unblinded or reused-blinding
    commitment is brute-forceable. Nothing in the contract can enforce this —
@@ -317,8 +341,10 @@ statement is encoded — have been answered concretely rather than gestured at.
 
 ## Next
 
-Compile the circuit, run a trusted setup, generate one real proof, and verify
-it end to end through zkVerify. That single loop turns everything above from
-a design into a demonstration, and it is precisely the "meaningful technical
-milestone rooted in your core privacy capability" the Builder Fund's M1 asks
-for.
+Take a proof through zkVerify itself: register the verification key, submit a
+proof, let it be aggregated, and consume the resulting attestation through
+`advanceState` on a real network. Local verification proves the circuit is
+sound; only that round trip proves the integration is.
+
+That is the shape of the Builder Fund's M1 — "a meaningful technical milestone
+rooted in your core privacy capability" — and most of it now exists.

@@ -31,14 +31,20 @@ advances it only against a zero-knowledge proof verified on zkVerify. Built
 against zkVerify's real interface, with the statement encoding implemented
 independently in Solidity and JavaScript and tested to agree.
 
-**But no proof has ever been generated.** `circuits/risk_caps.circom` is real,
-reviewable source and it is what the contract is written against — it has not
-been compiled, has had no trusted setup, and has never produced a proof. The
-honest description is: the integration and security design are built and
-tested; the proving system is specified. Compiling it and closing that loop is
-the next piece of work.
+**The circuit compiles and proves.** `circuits/risk_caps.circom` builds to
+~4,500 constraints and `npm run circuit:prove` generates a Groth16 proof and
+verifies it in **under a second** — fast enough that proving is not a
+constraint on how often a strategy can trade, which was an open viability
+question. The script also checks that the circuit's 16 public signals are
+exactly the vector the contract builds, and confirms that a book breaching the
+position cap **cannot be proven at all**.
 
-59 passing tests across both layers.
+What has *not* happened: no proof has been submitted to zkVerify or verified
+on-chain, and the trusted setup is a local development ceremony whose secret
+was never destroyed — usable for demonstration, disqualifying for real money.
+See the research notes.
+
+59 passing tests across both layers, plus the proving script.
 
 `docs/RESEARCH_NOTES.md` records what the RFP asks for, what is verified about
 the chain, what the confidential layer does and does not establish, and the
@@ -103,6 +109,15 @@ npx hardhat compile
 npx hardhat test
 ```
 
+To build the circuit and generate a proof, you need the circom compiler
+(`git clone https://github.com/iden3/circom && cd circom && cargo build
+--release`, about a minute), then:
+
+```bash
+CIRCOM=/path/to/circom npm run circuit:setup   # compile + Groth16 setup
+npm run circuit:prove                          # prove, verify, cross-check
+```
+
 Solidity 0.8.24, OpenZeppelin Contracts v5, Hardhat 2 + ethers v6 +
 Mocha/Chai. `hardhat.config.js` loads the compiler from the locally installed
 `solc` package rather than fetching a binary from `binaries.soliditylang.org`,
@@ -135,7 +150,10 @@ pointing at a placeholder.
 
 ## What's intentionally not here yet
 
-- **A compiled circuit and a real proof.** The single most important gap.
+- **An end-to-end run through zkVerify.** Proofs verify locally; none has
+  been submitted to zkVerify or checked on-chain.
+- **A production trusted setup.** The current ceremony is local and its toxic
+  waste was never destroyed.
 - **Proof of the transition, not just the destination.** The circuit
   constrains the new state to be within caps; it does not yet prove the state
   was reached by a legitimate trade.
