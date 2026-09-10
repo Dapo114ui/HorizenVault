@@ -1,0 +1,28 @@
+{
+  "name": "horizen-vault",
+  "version": "1.0.0",
+  "description": "Vault protocol for Horizen (EVM L3 on Base), built against the Builder Fund Season 2 RFP for private agentic trading vaults: pro-rata share vaults with on-chain risk caps, high-water-mark performance fees and Stork-priced NAV.",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dapo114ui/HorizenVault.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Dapo114ui/HorizenVault/issues"
+  },
+  "homepage": "https://github.com/Dapo114ui/HorizenVault#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.6.1",
+    "dotenv": "^17.4.2",
+    "hardhat": "^2.29.1",
+    "solc": "^0.8.24"
+  }
+}
