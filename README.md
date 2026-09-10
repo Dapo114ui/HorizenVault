@@ -11,23 +11,39 @@ enforced in the contract revert any trade that breaches them.
 
 [fund]: https://horizen.io/builder-fund/
 
-## Status: foundation only
+## Status
 
-**The confidentiality layer — the entire point of the RFP — is not built.**
-Positions, holdings and trades in this version are fully public, exactly the
-problem Horizen is funding someone to solve. What exists today is the vault
-substrate that the private version will be built on:
+Two layers, at very different stages.
+
+**The vault substrate is built and tested.** Positions in this layer are fully
+public — it is the plaintext vault, ported from X1:
 
 - Pooled deposits and pro-rata share accounting
 - NAV valuation via Stork price feeds
 - High-water-mark performance fees that never double-charge a recovery
 - Hard, on-chain risk caps that revert rather than warn
 - Per-strategy isolation with a curated deployer allowlist
-- 40 passing tests
+
+**The confidential layer is designed, integrated and partly built.**
+`ConfidentialRiskManager` enforces the same risk caps on positions nobody can
+see: the vault publishes a Poseidon commitment instead of its balances, and
+advances it only against a zero-knowledge proof verified on zkVerify. Built
+against zkVerify's real interface, with the statement encoding implemented
+independently in Solidity and JavaScript and tested to agree.
+
+**But no proof has ever been generated.** `circuits/risk_caps.circom` is real,
+reviewable source and it is what the contract is written against — it has not
+been compiled, has had no trusted setup, and has never produced a proof. The
+honest description is: the integration and security design are built and
+tested; the proving system is specified. Compiling it and closing that loop is
+the next piece of work.
+
+59 passing tests across both layers.
 
 `docs/RESEARCH_NOTES.md` records what the RFP asks for, what is verified about
-the chain, and every assumption still outstanding. Read it before trusting
-anything here about Horizen itself.
+the chain, what the confidential layer does and does not establish, and the
+known holes in it. Read it before trusting anything here — including, and
+especially, the privacy claims.
 
 ## Architecture
 
@@ -119,10 +135,14 @@ pointing at a placeholder.
 
 ## What's intentionally not here yet
 
-- **The confidentiality layer.** The substance of the RFP. See the research
-  notes for the primitives available (Vela, zkVerify) and their real maturity.
-- **Verifiable performance attestation.** Proving returns without revealing
-  positions — the other half of what is being funded.
+- **A compiled circuit and a real proof.** The single most important gap.
+- **Proof of the transition, not just the destination.** The circuit
+  constrains the new state to be within caps; it does not yet prove the state
+  was reached by a legitimate trade.
+- **A timelock on the verification key.** Changing the circuit changes the
+  rules, and today the owner can do it in one transaction.
+- **Wiring the confidential layer into `Vault`.** `ConfidentialRiskManager`
+  stands alongside the plaintext `RiskManager` rather than replacing it.
 - **Strategy ranking and onboarding** beyond the deployer allowlist.
 - **A swap venue.** None is documented on Horizen; trading is blocked on it,
   deposits and withdrawals are not.

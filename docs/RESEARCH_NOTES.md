@@ -206,3 +206,119 @@ network configuration, and the deployment script.
 - **Stork's update-side struct layout**, before any price-pushing code.
 - **The privacy architecture itself** — the substantive design decision, and
   the one the grant is actually funding.
+
+---
+
+# The confidential layer
+
+First iteration, added after the foundation. This section is the honest
+account of what has been built, what has merely been specified, and where the
+holes are. Read it before describing this work to anyone.
+
+## The idea
+
+The plaintext `RiskManager` enforces caps by reading balances and reverting.
+That is exactly why a public vault is safe — and exactly why it leaks: the
+values that let the contract check a cap let everyone else reconstruct the
+strategy.
+
+`ConfidentialRiskManager` replaces the reading with proving. The vault
+publishes a Poseidon commitment to its position quantities instead of the
+quantities. To move that commitment, the strategy presents a zero-knowledge
+proof — verified on zkVerify, not here — that the new positions open the new
+commitment, value to the NAV being published, and satisfy the caps.
+
+Depositors keep the guarantee they had (caps held, NAV honest) and lose the
+visibility that made the vault copyable.
+
+### The public/private split
+
+Public: caps, NAV, high-water mark, oracle prices, and the set of assets the
+vault *may* hold. Private: how much of each it actually holds.
+
+This split is forced by the RFP, and it is the right one. Depositors cannot
+allocate on a track record they cannot see, so performance must stay public
+and provable — that is the "verifiable performance attestation" half. What
+must be hidden is the allocation, because that is the copyable part.
+
+Note what this does **not** hide: the asset universe. An observer learns which
+assets a vault is permitted to trade. It does hide which of them it is
+actually in, since a zero quantity is indistinguishable from any other hidden
+quantity. Hiding the universe as well needs a different commitment scheme.
+
+## What is actually built and tested
+
+- **The on-chain integration, against zkVerify's real ABI.** Their
+  `zkv-attestation-contracts` repository is public; the interface and
+  statement-hash format here were taken from it rather than guessed. zkVerify
+  aggregates verified proofs into Merkle trees, so an EVM contract deploys no
+  verifier — it asks whether a leaf is in a published aggregation.
+- **The commitment scheme.** Real Poseidon, over BN254, blinded. Tested that
+  every position slot binds and that equal books under different blindings
+  produce different commitments.
+- **The statement encoding, implemented twice.** Once in Solidity, once in
+  `lib/statement.js`, with a test asserting they agree word for word. A
+  divergence here would show up only as a correct proof mysteriously failing
+  to verify, with nothing to indicate which side was wrong.
+- **The replay and binding design.** Commitment chaining alone is not enough:
+  a vault that trades back into an earlier position reproduces an earlier
+  commitment, and the original proof for that transition would verify again.
+  A sequence number in the public inputs closes it, and there is a test that
+  walks A→B→A and confirms the first proof no longer works. The vault address
+  and the caps are bound in too, so a proof cannot be lifted from another
+  vault or minted under looser caps and spent under tighter ones.
+- **Prices bound to the oracle by structure.** `advanceState` is
+  `onlyVault`, because the vault is the contract that reads Stork. An open
+  entrypoint would let a caller supply invented prices, make any position set
+  value to any NAV, and render the attestation worthless.
+
+19 tests, on top of the 59 covering the plaintext vault.
+
+## What is specified but NOT built
+
+**The circuit has never been compiled and no proof has ever been generated.**
+`circuits/risk_caps.circom` is real, reviewable source, and it is the
+specification the contract is written against — but there is no circom
+toolchain in the environment it was authored in, so it has not been compiled,
+has had no trusted setup, and has never produced a proof that zkVerify
+verified. Until that happens end to end, the honest description of this work
+is "the integration and security design are built and tested; the proving
+system is specified."
+
+That is a real distinction and it should not be blurred in an application.
+What it does establish is that the hard architectural questions — what is
+proven versus checked, how replay is prevented, how prices are bound, how the
+statement is encoded — have been answered concretely rather than gestured at.
+
+## Known holes
+
+1. **The circuit proves the destination, not the journey.** It constrains the
+   new state to be well-formed and within caps. It does not prove the
+   transition was a legitimate trade, so an operator could move to any
+   within-caps state rather than only to states reachable by trading. Closing
+   this means proving conservation across the swap — quantities in, quantities
+   out, at execution prices — and roughly doubles the circuit. It is the
+   obvious second iteration and it should not ship without it.
+2. **`vkHash` is owner-settable.** Changing the circuit changes the rules, and
+   an owner who swaps in a permissive circuit can authorise anything. It is
+   evented, but eventing is not protection. This wants a timelock at minimum.
+3. **The mock does not verify Merkle paths.** Deliberate — a mock that faked
+   aggregation would test this contract's arithmetic rather than the vault's
+   behaviour, and would drift from zkVerify's real tree. But it means the
+   Merkle-path plumbing is untested until it runs against the real thing.
+4. **No proving-side performance work.** Proof generation time and cost per
+   trade are unknown, and they determine whether a strategy can trade at any
+   useful frequency. This is a viability question, not a detail.
+5. **The blinding factor must be freshly random per commitment.** Quantities
+   are drawn from a small, guessable space, so an unblinded or reused-blinding
+   commitment is brute-forceable. Nothing in the contract can enforce this —
+   it is a property of the prover, and it is the kind of thing that gets
+   quietly wrong.
+
+## Next
+
+Compile the circuit, run a trusted setup, generate one real proof, and verify
+it end to end through zkVerify. That single loop turns everything above from
+a design into a demonstration, and it is precisely the "meaningful technical
+milestone rooted in your core privacy capability" the Builder Fund's M1 asks
+for.
