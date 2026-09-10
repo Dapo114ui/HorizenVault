@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* Design tokens. Dark mode is a selected palette stepped for the dark
+   surface, not an automatic flip -- declared under both the OS media query
+   and the [data-theme] scope so an explicit choice wins either way. */
+:root {
+  --surface-0: #fcfcfb; /* page */
+  --surface-1: #ffffff; /* card */
+  --surface-2: #f4f4f1; /* inset / track */
+  --border: #e4e4df;
+  --border-strong: #cfcfc7;
+
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #83827c;
+
+  /* Brand violet. Mark-only: on white it sits near 3:1, so it is never used
+     for body text or as a button ground. The hue is deliberate -- this vault's
+     whole proposition is that its positions are sealed, and violet reads that
+     way where the greens and blues of ordinary DeFi read as "yield". */
+  --brand: #7c5cff;
+
+  /* The interactive sibling: same hue, darkened until white text on it
+     clears 4.5:1 (it measures ~6.7:1), so buttons and links can use it safely. */
+  --accent: #5b3fd6;
+  --accent-on: #ffffff; /* text placed on the accent ground */
+  --accent-ink: #251057;
+  --accent-soft: #ece7ff;
+
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-0: #131312;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --border: #2e2e2b;
+    --border-strong: #43433f;
+
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8e8d84;
+
+    /* On the dark ground the brand violet needs lifting, not darkening, and
+       the accent moves toward it rather than away. */
+    --brand: #a48bff;
+    --accent: #a48bff;
+    --accent-on: #1a0e3d;
+    --accent-ink: #150a33;
+    --accent-soft: #241a4d;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-0: #131312;
+  --surface-1: #1a1a19;
+  --surface-2: #232321;
+  --border: #2e2e2b;
+  --border-strong: #43433f;
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #8e8d84;
+
+  --brand: #a48bff;
+  --accent: #a48bff;
+  --accent-on: #1a0e3d;
+  --accent-ink: #150a33;
+  --accent-soft: #241a4d;
+}
+
+@theme inline {
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-border-subtle: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--text-primary);
+  --color-ink-secondary: var(--text-secondary);
+  --color-ink-muted: var(--text-muted);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --color-accent-on: var(--accent-on);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-warning: var(--warning);
+  --color-critical: var(--critical);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Columns of figures align; standalone display values keep the font's
+   proportional figures so they don't read loose at large sizes. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
